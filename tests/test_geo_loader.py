@@ -9,7 +9,9 @@ import pandas as pd
 import pytest
 
 from src.geo_loader import (
+    align_expression_with_metadata,
     build_sample_metadata_table,
+    convert_expression_to_numeric,
     extract_characteristics,
     extract_geo_metadata,
     load_geo_expression_table,
@@ -88,6 +90,47 @@ def test_extract_characteristics_preserves_repeated_fields() -> None:
     assert characteristics.columns.tolist() == ["status", "status_2"]
     assert characteristics["status"].tolist() == ["control", "example"]
     assert characteristics["status_2"].tolist() == ["untreated", "treated"]
+
+
+def test_align_expression_with_metadata_uses_metadata_order() -> None:
+    expression = pd.DataFrame(
+        {
+            "ID_REF": ["probe_1", "probe_2"],
+            "GSM2": [2.0, 4.0],
+            "GSM1": [1.0, 3.0],
+        }
+    )
+    metadata = pd.DataFrame(
+        {
+            "sample_accession": ["GSM1", "GSM2"],
+            "group": ["control", "example"],
+        }
+    )
+
+    aligned_expression, aligned_metadata = align_expression_with_metadata(
+        expression,
+        metadata,
+    )
+
+    assert aligned_expression.columns.tolist() == ["ID_REF", "GSM1", "GSM2"]
+    assert aligned_metadata["sample_accession"].tolist() == ["GSM1", "GSM2"]
+
+
+def test_convert_expression_to_numeric_preserves_probe_ids() -> None:
+    expression = pd.DataFrame(
+        {
+            "ID_REF": ["probe_1", "probe_2"],
+            "GSM1": ["1.5", "not_available"],
+            "GSM2": ["2", "4"],
+        }
+    )
+
+    converted = convert_expression_to_numeric(expression)
+
+    assert converted["ID_REF"].tolist() == ["probe_1", "probe_2"]
+    assert converted["GSM2"].tolist() == [2, 4]
+    assert pd.isna(converted.loc[1, "GSM1"])
+    assert expression.loc[1, "GSM1"] == "not_available"
 
 
 def test_load_geo_expression_table(tmp_path: Path) -> None:

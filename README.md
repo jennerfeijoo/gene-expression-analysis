@@ -13,5 +13,10 @@ The second notebook,
 [`notebooks/02_sample_metadata.ipynb`](notebooks/02_sample_metadata.ipynb),
 organizes sample metadata and documents source-based group labels.
 
+The third notebook,
+[`notebooks/03_first_expression_plots.ipynb`](notebooks/03_first_expression_plots.ipynb),
+checks sample alignment and creates initial expression-distribution plots.
+
 Raw GEO files and the generated `data/processed/sample_metadata.csv` table are
-kept locally and are not tracked by Git.
+kept locally and are not tracked by Git. Generated figures under
+`reports/figures/` are tracked.

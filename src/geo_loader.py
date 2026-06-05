@@ -106,6 +106,49 @@ def build_sample_metadata_table(lines: list[str]) -> pd.DataFrame:
     )
 
 
+def align_expression_with_metadata(
+    expression: pd.DataFrame,
+    metadata: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Align expression sample columns to metadata row order."""
+    if "sample_accession" not in metadata.columns:
+        raise ValueError("Metadata must contain a sample_accession column.")
+    if metadata["sample_accession"].duplicated().any():
+        raise ValueError("Metadata sample accessions must be unique.")
+
+    accessions = metadata["sample_accession"].tolist()
+    identifier_columns = ["ID_REF"] if "ID_REF" in expression.columns else []
+    expression_samples = [
+        column for column in expression.columns if column not in identifier_columns
+    ]
+
+    missing_expression = set(accessions) - set(expression_samples)
+    missing_metadata = set(expression_samples) - set(accessions)
+    if missing_expression or missing_metadata:
+        raise ValueError(
+            "Expression and metadata sample accessions do not match: "
+            f"{len(missing_expression)} missing from expression, "
+            f"{len(missing_metadata)} missing from metadata."
+        )
+
+    aligned_expression = expression.loc[:, identifier_columns + accessions].copy()
+    aligned_metadata = metadata.set_index("sample_accession").loc[accessions].reset_index()
+    return aligned_expression, aligned_metadata
+
+
+def convert_expression_to_numeric(expression: pd.DataFrame) -> pd.DataFrame:
+    """Convert expression sample columns to numeric values without mutating input."""
+    converted = expression.copy()
+    sample_columns = [
+        column for column in converted.columns if column != "ID_REF"
+    ]
+    converted[sample_columns] = converted[sample_columns].apply(
+        pd.to_numeric,
+        errors="coerce",
+    )
+    return converted
+
+
 def load_geo_expression_table(path: str | Path) -> pd.DataFrame:
     """Load the expression table delimited by GEO series matrix markers."""
     lines = read_geo_series_lines(path)
