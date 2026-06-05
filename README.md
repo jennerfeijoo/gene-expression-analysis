@@ -39,6 +39,10 @@ The eighth notebook,
 [`notebooks/08_probe_annotation.ipynb`](notebooks/08_probe_annotation.ipynb),
 checks GPL13667 probe-to-gene annotation before interpretation.
 
+The ninth notebook,
+[`notebooks/09_gene_level_summary.ipynb`](notebooks/09_gene_level_summary.ipynb),
+creates a first gene-symbol summary using one representative probe per gene.
+
 Raw GEO files and the generated `data/processed/sample_metadata.csv` table are
 kept locally and are not tracked by Git. Generated figures under
 `reports/figures/` are tracked.

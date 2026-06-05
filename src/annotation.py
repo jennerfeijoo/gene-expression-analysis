@@ -121,3 +121,79 @@ def annotate_probe_ranking(
         how="left",
         validate="many_to_one",
     )
+
+
+def _expand_gene_symbols(annotated_ranking: pd.DataFrame) -> pd.DataFrame:
+    if "gene_symbol" not in annotated_ranking.columns:
+        raise ValueError("Annotated ranking must contain a gene_symbol column.")
+
+    expanded = annotated_ranking.dropna(subset=["gene_symbol"]).copy()
+    expanded["gene_symbol"] = expanded["gene_symbol"].str.split(r"\s*///\s*")
+    expanded = expanded.explode("gene_symbol")
+    expanded["gene_symbol"] = expanded["gene_symbol"].str.strip()
+    return expanded[expanded["gene_symbol"].ne("")]
+
+
+def summarize_probes_per_gene(
+    annotated_ranking: pd.DataFrame,
+) -> pd.DataFrame:
+    """Count distinct annotated probes assigned to each gene symbol."""
+    expanded = _expand_gene_symbols(annotated_ranking)
+    return (
+        expanded.groupby("gene_symbol", as_index=False)["probe_id"]
+        .nunique()
+        .rename(columns={"probe_id": "probe_count"})
+        .sort_values(["probe_count", "gene_symbol"], ascending=[False, True])
+        .reset_index(drop=True)
+    )
+
+
+def collapse_to_gene_level(
+    annotated_ranking: pd.DataFrame,
+) -> pd.DataFrame:
+    """Keep the smallest-adjusted-p probe as a representative for each gene."""
+    required_columns = {
+        "probe_id",
+        "gene_symbol",
+        "adjusted_p_value",
+        "mean_paired_difference",
+    }
+    missing_columns = required_columns - set(annotated_ranking.columns)
+    if missing_columns:
+        raise ValueError(
+            f"Annotated ranking is missing columns: {sorted(missing_columns)}"
+        )
+
+    expanded = _expand_gene_symbols(annotated_ranking)
+    probe_counts = summarize_probes_per_gene(annotated_ranking)
+    expanded["_absolute_paired_difference"] = expanded[
+        "mean_paired_difference"
+    ].abs()
+    representatives = (
+        expanded.sort_values(
+            [
+                "gene_symbol",
+                "adjusted_p_value",
+                "_absolute_paired_difference",
+                "probe_id",
+            ],
+            ascending=[True, True, False, True],
+            na_position="last",
+        )
+        .drop_duplicates("gene_symbol", keep="first")
+        .drop(columns="_absolute_paired_difference")
+    )
+    return (
+        representatives.merge(
+            probe_counts,
+            on="gene_symbol",
+            how="left",
+            validate="one_to_one",
+        )
+        .sort_values(
+            ["adjusted_p_value", "gene_symbol"],
+            ascending=[True, True],
+            na_position="last",
+        )
+        .reset_index(drop=True)
+    )
