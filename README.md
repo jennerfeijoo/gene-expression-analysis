@@ -47,6 +47,13 @@ The tenth notebook,
 [`notebooks/10_check_gene_collapse.ipynb`](notebooks/10_check_gene_collapse.ipynb),
 adds a collapse-rule sensitivity check for the gene-level summary.
 
+Current progress and methodological limits are summarized in
+[`notes/interim_findings.md`](notes/interim_findings.md).
+
+Gene-level results depend on probe annotation and the rule used to select a
+representative probe. Pathway interpretation is postponed until those choices
+have been reviewed.
+
 Raw GEO files and the generated `data/processed/sample_metadata.csv` table are
 kept locally and are not tracked by Git. Generated figures under
 `reports/figures/` are tracked.
