@@ -16,6 +16,8 @@ from src.geo_loader import (
     extract_geo_metadata,
     load_geo_expression_table,
     read_geo_series_lines,
+    summarize_expression_values,
+    summarize_sample_distributions,
 )
 
 GEO_EXAMPLE = """!Series_geo_accession\t"GSE00000"
@@ -131,6 +133,41 @@ def test_convert_expression_to_numeric_preserves_probe_ids() -> None:
     assert converted["GSM2"].tolist() == [2, 4]
     assert pd.isna(converted.loc[1, "GSM1"])
     assert expression.loc[1, "GSM1"] == "not_available"
+
+
+def test_summarize_expression_values_returns_expected_statistics() -> None:
+    expression = pd.DataFrame(
+        {
+            "ID_REF": ["probe_1", "probe_2", "probe_3"],
+            "GSM1": [1.0, 3.0, 5.0],
+            "GSM2": [2.0, 4.0, 6.0],
+        }
+    )
+
+    summary = summarize_expression_values(expression)
+
+    assert summary["count"] == 6
+    assert summary["missing"] == 0
+    assert summary["minimum"] == 1.0
+    assert summary["median"] == 3.5
+    assert summary["maximum"] == 6.0
+
+
+def test_summarize_sample_distributions_returns_one_row_per_sample() -> None:
+    expression = pd.DataFrame(
+        {
+            "ID_REF": ["probe_1", "probe_2", "probe_3", "probe_4"],
+            "GSM1": [1.0, 2.0, 3.0, 4.0],
+            "GSM2": [2.0, 4.0, 6.0, 8.0],
+        }
+    )
+
+    summary = summarize_sample_distributions(expression)
+
+    assert summary.index.tolist() == ["GSM1", "GSM2"]
+    assert summary.loc["GSM1", "median"] == 2.5
+    assert summary.loc["GSM1", "iqr"] == 1.5
+    assert summary.loc["GSM2", "missing"] == 0
 
 
 def test_load_geo_expression_table(tmp_path: Path) -> None:

@@ -149,6 +149,53 @@ def convert_expression_to_numeric(expression: pd.DataFrame) -> pd.DataFrame:
     return converted
 
 
+def summarize_expression_values(expression: pd.DataFrame) -> pd.Series:
+    """Summarize numeric expression values across all samples."""
+    sample_columns = [
+        column for column in expression.columns if column != "ID_REF"
+    ]
+    values = expression[sample_columns].stack()
+    quantiles = values.quantile([0.01, 0.05, 0.25, 0.5, 0.75, 0.95, 0.99])
+
+    return pd.Series(
+        {
+            "count": values.count(),
+            "missing": expression[sample_columns].isna().sum().sum(),
+            "minimum": values.min(),
+            "q01": quantiles.loc[0.01],
+            "q05": quantiles.loc[0.05],
+            "q25": quantiles.loc[0.25],
+            "median": quantiles.loc[0.5],
+            "q75": quantiles.loc[0.75],
+            "q95": quantiles.loc[0.95],
+            "q99": quantiles.loc[0.99],
+            "maximum": values.max(),
+        },
+        name="expression_value",
+    )
+
+
+def summarize_sample_distributions(expression: pd.DataFrame) -> pd.DataFrame:
+    """Summarize the expression distribution within each sample column."""
+    sample_columns = [
+        column for column in expression.columns if column != "ID_REF"
+    ]
+    values = expression[sample_columns]
+    summary = pd.DataFrame(
+        {
+            "minimum": values.min(),
+            "q25": values.quantile(0.25),
+            "median": values.median(),
+            "q75": values.quantile(0.75),
+            "maximum": values.max(),
+            "missing": values.isna().sum(),
+        }
+    )
+    summary["iqr"] = summary["q75"] - summary["q25"]
+    summary.index.name = "sample_accession"
+    return summary
+
+
 def load_geo_expression_table(path: str | Path) -> pd.DataFrame:
     """Load the expression table delimited by GEO series matrix markers."""
     lines = read_geo_series_lines(path)

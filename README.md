@@ -17,6 +17,11 @@ The third notebook,
 [`notebooks/03_first_expression_plots.ipynb`](notebooks/03_first_expression_plots.ipynb),
 checks sample alignment and creates initial expression-distribution plots.
 
+The fourth notebook,
+[`notebooks/04_check_expression_preprocessing.ipynb`](notebooks/04_check_expression_preprocessing.ipynb),
+checks the supplied value scale and sample-level distribution summaries before
+PCA or differential analysis.
+
 Raw GEO files and the generated `data/processed/sample_metadata.csv` table are
 kept locally and are not tracked by Git. Generated figures under
 `reports/figures/` are tracked.
