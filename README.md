@@ -43,6 +43,10 @@ The ninth notebook,
 [`notebooks/09_gene_level_summary.ipynb`](notebooks/09_gene_level_summary.ipynb),
 creates a first gene-symbol summary using one representative probe per gene.
 
+The tenth notebook,
+[`notebooks/10_check_gene_collapse.ipynb`](notebooks/10_check_gene_collapse.ipynb),
+adds a collapse-rule sensitivity check for the gene-level summary.
+
 Raw GEO files and the generated `data/processed/sample_metadata.csv` table are
 kept locally and are not tracked by Git. Generated figures under
 `reports/figures/` are tracked.

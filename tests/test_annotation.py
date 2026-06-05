@@ -6,8 +6,11 @@ import pandas as pd
 
 from src.annotation import (
     annotate_probe_ranking,
+    collapse_by_largest_abs_effect,
     collapse_to_gene_level,
+    compare_gene_collapse_rules,
     standardize_annotation_columns,
+    summarize_gene_probe_consistency,
     summarize_probes_per_gene,
 )
 
@@ -120,3 +123,45 @@ def test_collapse_to_gene_level_selects_smallest_adjusted_p_value() -> None:
 
     assert collapsed.loc[0, "probe_id"] == "probe_representative"
     assert collapsed.loc[0, "adjusted_p_value"] == 0.001
+
+
+def test_summarize_gene_probe_consistency_flags_mixed_directions() -> None:
+    annotated = pd.DataFrame(
+        {
+            "probe_id": ["probe_1", "probe_2", "probe_3"],
+            "gene_symbol": ["GENE1", "GENE1", "GENE2"],
+            "mean_paired_difference": [2.0, -1.0, 3.0],
+        }
+    )
+
+    summary = summarize_gene_probe_consistency(annotated).set_index("gene_symbol")
+
+    assert bool(summary.loc["GENE1", "direction_conflict"])
+    assert not bool(summary.loc["GENE1", "same_direction"])
+    assert bool(summary.loc["GENE2", "same_direction"])
+
+
+def test_collapse_by_largest_abs_effect_selects_largest_effect_probe() -> None:
+    annotated = pd.DataFrame(
+        {
+            "probe_id": ["probe_significant", "probe_large_effect"],
+            "gene_symbol": ["GENE1", "GENE1"],
+            "adjusted_p_value": [0.001, 0.05],
+            "mean_paired_difference": [1.0, -4.0],
+        }
+    )
+
+    collapsed = collapse_by_largest_abs_effect(annotated)
+
+    assert collapsed.loc[0, "probe_id"] == "probe_large_effect"
+    assert collapsed.loc[0, "probe_count"] == 2
+
+
+def test_compare_gene_collapse_rules_reports_top_overlap() -> None:
+    table_a = pd.DataFrame({"gene_symbol": ["A", "B", "C", "D"]})
+    table_b = pd.DataFrame({"gene_symbol": ["B", "C", "E", "F"]})
+
+    comparison = compare_gene_collapse_rules(table_a, table_b, top_n=3)
+
+    assert comparison["in_both"].sum() == 2
+    assert set(comparison.loc[comparison["in_both"], "gene_symbol"]) == {"B", "C"}

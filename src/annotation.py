@@ -197,3 +197,118 @@ def collapse_to_gene_level(
         )
         .reset_index(drop=True)
     )
+
+
+def summarize_gene_probe_consistency(
+    annotated_ranking: pd.DataFrame,
+) -> pd.DataFrame:
+    """Summarize effect-direction agreement among probes for each gene."""
+    if "mean_paired_difference" not in annotated_ranking.columns:
+        raise ValueError(
+            "Annotated ranking must contain a mean_paired_difference column."
+        )
+
+    expanded = _expand_gene_symbols(annotated_ranking).drop_duplicates(
+        ["gene_symbol", "probe_id"]
+    )
+    expanded["_direction"] = 0
+    expanded.loc[expanded["mean_paired_difference"] > 0, "_direction"] = 1
+    expanded.loc[expanded["mean_paired_difference"] < 0, "_direction"] = -1
+
+    summary = (
+        expanded.groupby("gene_symbol", as_index=False)
+        .agg(
+            probe_count=("probe_id", "nunique"),
+            positive_probe_count=("_direction", lambda values: (values > 0).sum()),
+            negative_probe_count=("_direction", lambda values: (values < 0).sum()),
+            zero_probe_count=("_direction", lambda values: (values == 0).sum()),
+        )
+    )
+    summary["direction_conflict"] = (
+        summary["positive_probe_count"].gt(0)
+        & summary["negative_probe_count"].gt(0)
+    )
+    summary["same_direction"] = ~summary["direction_conflict"]
+    return summary.sort_values(
+        ["probe_count", "gene_symbol"],
+        ascending=[False, True],
+    ).reset_index(drop=True)
+
+
+def collapse_by_largest_abs_effect(
+    annotated_ranking: pd.DataFrame,
+) -> pd.DataFrame:
+    """Keep the largest-absolute-effect probe as a representative per gene."""
+    required_columns = {
+        "probe_id",
+        "gene_symbol",
+        "adjusted_p_value",
+        "mean_paired_difference",
+    }
+    missing_columns = required_columns - set(annotated_ranking.columns)
+    if missing_columns:
+        raise ValueError(
+            f"Annotated ranking is missing columns: {sorted(missing_columns)}"
+        )
+
+    expanded = _expand_gene_symbols(annotated_ranking)
+    probe_counts = summarize_probes_per_gene(annotated_ranking)
+    expanded["_absolute_paired_difference"] = expanded[
+        "mean_paired_difference"
+    ].abs()
+    representatives = (
+        expanded.sort_values(
+            [
+                "gene_symbol",
+                "_absolute_paired_difference",
+                "adjusted_p_value",
+                "probe_id",
+            ],
+            ascending=[True, False, True, True],
+            na_position="last",
+        )
+        .drop_duplicates("gene_symbol", keep="first")
+        .drop(columns="_absolute_paired_difference")
+    )
+    result = representatives.merge(
+        probe_counts,
+        on="gene_symbol",
+        how="left",
+        validate="one_to_one",
+    )
+    result["_absolute_paired_difference"] = result["mean_paired_difference"].abs()
+    return (
+        result.sort_values(
+            ["_absolute_paired_difference", "adjusted_p_value", "gene_symbol"],
+            ascending=[False, True, True],
+            na_position="last",
+        )
+        .drop(columns="_absolute_paired_difference")
+        .reset_index(drop=True)
+    )
+
+
+def compare_gene_collapse_rules(
+    table_a: pd.DataFrame,
+    table_b: pd.DataFrame,
+    top_n: int = 50,
+) -> pd.DataFrame:
+    """Compare membership and rank among the top genes from two rules."""
+    if top_n <= 0:
+        raise ValueError("top_n must be positive.")
+    if "gene_symbol" not in table_a.columns or "gene_symbol" not in table_b.columns:
+        raise ValueError("Both tables must contain a gene_symbol column.")
+
+    top_a = table_a["gene_symbol"].drop_duplicates().head(top_n).tolist()
+    top_b = table_b["gene_symbol"].drop_duplicates().head(top_n).tolist()
+    symbols = list(dict.fromkeys(top_a + top_b))
+    rank_a = {symbol: rank for rank, symbol in enumerate(top_a, start=1)}
+    rank_b = {symbol: rank for rank, symbol in enumerate(top_b, start=1)}
+
+    comparison = pd.DataFrame({"gene_symbol": symbols})
+    comparison["rank_rule_a"] = comparison["gene_symbol"].map(rank_a).astype("Int64")
+    comparison["rank_rule_b"] = comparison["gene_symbol"].map(rank_b).astype("Int64")
+    comparison["in_rule_a"] = comparison["rank_rule_a"].notna()
+    comparison["in_rule_b"] = comparison["rank_rule_b"].notna()
+    comparison["in_both"] = comparison["in_rule_a"] & comparison["in_rule_b"]
+    return comparison
