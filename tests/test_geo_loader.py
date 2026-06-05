@@ -15,7 +15,9 @@ from src.geo_loader import (
     extract_characteristics,
     extract_geo_metadata,
     load_geo_expression_table,
+    prepare_sample_feature_matrix,
     read_geo_series_lines,
+    select_top_variable_features,
     summarize_expression_values,
     summarize_sample_distributions,
 )
@@ -168,6 +170,39 @@ def test_summarize_sample_distributions_returns_one_row_per_sample() -> None:
     assert summary.loc["GSM1", "median"] == 2.5
     assert summary.loc["GSM1", "iqr"] == 1.5
     assert summary.loc["GSM2", "missing"] == 0
+
+
+def test_select_top_variable_features_uses_across_sample_variance() -> None:
+    expression = pd.DataFrame(
+        {
+            "ID_REF": ["stable", "variable", "moderate"],
+            "GSM1": [2.0, 0.0, 1.0],
+            "GSM2": [2.0, 10.0, 3.0],
+            "GSM3": [2.0, 0.0, 5.0],
+        }
+    )
+
+    selected = select_top_variable_features(expression, top_n=2)
+
+    assert selected["ID_REF"].tolist() == ["variable", "moderate"]
+    assert expression["ID_REF"].tolist() == ["stable", "variable", "moderate"]
+
+
+def test_prepare_sample_feature_matrix_transposes_expression() -> None:
+    expression = pd.DataFrame(
+        {
+            "ID_REF": ["probe_1", "probe_2"],
+            "GSM1": [1.0, 3.0],
+            "GSM2": [2.0, 4.0],
+        }
+    )
+
+    matrix = prepare_sample_feature_matrix(expression)
+
+    assert matrix.shape == (2, 2)
+    assert matrix.index.tolist() == ["GSM1", "GSM2"]
+    assert matrix.columns.tolist() == ["probe_1", "probe_2"]
+    assert matrix.loc["GSM2", "probe_1"] == 2.0
 
 
 def test_load_geo_expression_table(tmp_path: Path) -> None:

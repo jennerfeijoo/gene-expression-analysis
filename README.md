@@ -22,6 +22,10 @@ The fourth notebook,
 checks the supplied value scale and sample-level distribution summaries before
 PCA or differential analysis.
 
+The fifth notebook,
+[`notebooks/05_first_pca.ipynb`](notebooks/05_first_pca.ipynb), adds a first
+exploratory PCA of sample-level structure.
+
 Raw GEO files and the generated `data/processed/sample_metadata.csv` table are
 kept locally and are not tracked by Git. Generated figures under
 `reports/figures/` are tracked.

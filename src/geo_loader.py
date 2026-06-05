@@ -196,6 +196,34 @@ def summarize_sample_distributions(expression: pd.DataFrame) -> pd.DataFrame:
     return summary
 
 
+def select_top_variable_features(
+    expression: pd.DataFrame,
+    top_n: int = 5000,
+) -> pd.DataFrame:
+    """Select probes with the highest variance across samples."""
+    if top_n <= 0:
+        raise ValueError("top_n must be positive.")
+
+    sample_columns = [
+        column for column in expression.columns if column != "ID_REF"
+    ]
+    variances = expression[sample_columns].var(axis=1)
+    selected_index = variances.nlargest(min(top_n, len(expression))).index
+    return expression.loc[selected_index].copy()
+
+
+def prepare_sample_feature_matrix(expression: pd.DataFrame) -> pd.DataFrame:
+    """Transpose a probe-by-sample table into a sample-by-probe matrix."""
+    if "ID_REF" not in expression.columns:
+        raise ValueError("Expression table must contain an ID_REF column.")
+    if expression["ID_REF"].duplicated().any():
+        raise ValueError("Probe identifiers must be unique before transposing.")
+
+    matrix = expression.set_index("ID_REF").transpose().copy()
+    matrix.index.name = "sample_accession"
+    return matrix
+
+
 def load_geo_expression_table(path: str | Path) -> pd.DataFrame:
     """Load the expression table delimited by GEO series matrix markers."""
     lines = read_geo_series_lines(path)
