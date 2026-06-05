@@ -30,6 +30,11 @@ The sixth notebook,
 [`notebooks/06_first_group_comparison.ipynb`](notebooks/06_first_group_comparison.ipynb),
 adds an exploratory tumor versus paired-normal probe comparison.
 
+The seventh notebook,
+[`notebooks/07_check_paired_design.ipynb`](notebooks/07_check_paired_design.ipynb),
+checks the matched design and runs a paired comparison when pairing is valid.
+The earlier unpaired ranking remains exploratory.
+
 Raw GEO files and the generated `data/processed/sample_metadata.csv` table are
 kept locally and are not tracked by Git. Generated figures under
 `reports/figures/` are tracked.
