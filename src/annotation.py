@@ -1,0 +1,123 @@
+"""Helpers for loading and joining GEO platform annotations."""
+
+from __future__ import annotations
+
+import gzip
+from pathlib import Path
+import re
+
+import pandas as pd
+
+PLATFORM_TABLE_BEGIN = "!platform_table_begin"
+PLATFORM_TABLE_END = "!platform_table_end"
+
+ANNOTATION_ALIASES = {
+    "probe_id": ("probe_id", "id", "id_ref", "probe set id", "probeset id"),
+    "gene_symbol": ("gene_symbol", "gene symbol", "symbol"),
+    "gene_title": (
+        "gene_title",
+        "gene title",
+        "gene_name",
+        "gene name",
+        "description",
+    ),
+    "entrez_id": (
+        "entrez_id",
+        "entrez gene",
+        "entrez gene id",
+        "entrezgene",
+    ),
+}
+
+
+def _normalize_column_name(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
+
+
+def _open_text(path: Path):
+    if path.suffix == ".gz":
+        return gzip.open(path, mode="rt", encoding="utf-8", errors="replace")
+    return path.open(mode="rt", encoding="utf-8", errors="replace")
+
+
+def load_gpl_annotation(path: str | Path) -> pd.DataFrame:
+    """Load the annotation table from a GEO platform text or gzip file."""
+    file_path = Path(path)
+    if not file_path.is_file():
+        raise FileNotFoundError(f"GPL annotation file not found: {file_path}")
+
+    header_line = None
+    row_count = None
+    with _open_text(file_path) as handle:
+        for line_number, line in enumerate(handle):
+            if line.strip() == PLATFORM_TABLE_BEGIN:
+                header_line = line_number + 1
+                continue
+            if line.strip() == PLATFORM_TABLE_END and header_line is not None:
+                row_count = line_number - header_line - 1
+                break
+
+    if header_line is None:
+        return pd.read_csv(file_path, sep="\t", compression="infer", dtype=str)
+
+    if row_count is None:
+        raise ValueError("GPL platform annotation table is incomplete.")
+
+    return pd.read_csv(
+        file_path,
+        sep="\t",
+        compression="infer",
+        skiprows=header_line,
+        nrows=row_count,
+        dtype=str,
+        low_memory=False,
+    )
+
+
+def standardize_annotation_columns(annotation: pd.DataFrame) -> pd.DataFrame:
+    """Standardize common GPL annotation columns and missing-value markers."""
+    normalized_columns = {
+        _normalize_column_name(column): column for column in annotation.columns
+    }
+    standardized = pd.DataFrame(index=annotation.index)
+
+    for target, aliases in ANNOTATION_ALIASES.items():
+        source = next(
+            (
+                normalized_columns[_normalize_column_name(alias)]
+                for alias in aliases
+                if _normalize_column_name(alias) in normalized_columns
+            ),
+            None,
+        )
+        standardized[target] = annotation[source] if source else pd.NA
+
+    if standardized["probe_id"].isna().all():
+        raise ValueError("No probe identifier column was found in the annotation.")
+
+    return standardized.replace(
+        {
+            "": pd.NA,
+            "---": pd.NA,
+            "NA": pd.NA,
+            "nan": pd.NA,
+        }
+    )
+
+
+def annotate_probe_ranking(
+    ranking: pd.DataFrame,
+    annotation: pd.DataFrame,
+) -> pd.DataFrame:
+    """Left-join standardized annotation onto a probe-level ranking."""
+    if "probe_id" not in ranking.columns:
+        raise ValueError("Ranking must contain a probe_id column.")
+
+    standardized = standardize_annotation_columns(annotation)
+    standardized = standardized.drop_duplicates("probe_id", keep="first")
+    return ranking.merge(
+        standardized,
+        on="probe_id",
+        how="left",
+        validate="many_to_one",
+    )

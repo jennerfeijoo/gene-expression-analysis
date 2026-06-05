@@ -35,6 +35,10 @@ The seventh notebook,
 checks the matched design and runs a paired comparison when pairing is valid.
 The earlier unpaired ranking remains exploratory.
 
+The eighth notebook,
+[`notebooks/08_probe_annotation.ipynb`](notebooks/08_probe_annotation.ipynb),
+checks GPL13667 probe-to-gene annotation before interpretation.
+
 Raw GEO files and the generated `data/processed/sample_metadata.csv` table are
 kept locally and are not tracked by Git. Generated figures under
 `reports/figures/` are tracked.
