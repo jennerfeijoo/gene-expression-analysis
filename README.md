@@ -26,6 +26,10 @@ The fifth notebook,
 [`notebooks/05_first_pca.ipynb`](notebooks/05_first_pca.ipynb), adds a first
 exploratory PCA of sample-level structure.
 
+The sixth notebook,
+[`notebooks/06_first_group_comparison.ipynb`](notebooks/06_first_group_comparison.ipynb),
+adds an exploratory tumor versus paired-normal probe comparison.
+
 Raw GEO files and the generated `data/processed/sample_metadata.csv` table are
 kept locally and are not tracked by Git. Generated figures under
 `reports/figures/` are tracked.
