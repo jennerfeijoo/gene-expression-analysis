@@ -9,6 +9,8 @@ import pandas as pd
 import pytest
 
 from src.geo_loader import (
+    build_sample_metadata_table,
+    extract_characteristics,
     extract_geo_metadata,
     load_geo_expression_table,
     read_geo_series_lines,
@@ -17,6 +19,9 @@ from src.geo_loader import (
 GEO_EXAMPLE = """!Series_geo_accession\t"GSE00000"
 !Sample_geo_accession\t"GSM1"\t"GSM2"
 !Sample_title\t"control"\t"example"
+!Sample_source_name_ch1\t"healthy tissue"\t"example tissue"
+!Sample_characteristics_ch1\t"group: control"\t"group: example"
+!Sample_characteristics_ch1\t"batch: one"\t"batch: two"
 !series_matrix_table_begin
 "ID_REF"\t"GSM1"\t"GSM2"
 "probe_1"\t1.0\t2.0
@@ -48,6 +53,41 @@ def test_extract_geo_metadata_collects_sample_fields() -> None:
     assert metadata["Sample_geo_accession"] == ["GSM1", "GSM2"]
     assert metadata["Sample_title"] == ["control", "example"]
     assert "series_matrix_table_begin" not in metadata
+
+
+def test_build_sample_metadata_table_aligns_sample_fields() -> None:
+    sample_metadata = build_sample_metadata_table(
+        GEO_EXAMPLE.splitlines(keepends=True)
+    )
+
+    expected = pd.DataFrame(
+        {
+            "sample_accession": ["GSM1", "GSM2"],
+            "title": ["control", "example"],
+            "source_name": ["healthy tissue", "example tissue"],
+            "group": ["control", "example"],
+            "batch": ["one", "two"],
+        }
+    )
+    pd.testing.assert_frame_equal(sample_metadata, expected)
+
+
+def test_extract_characteristics_preserves_repeated_fields() -> None:
+    metadata = {
+        "Sample_geo_accession": ["GSM1", "GSM2"],
+        "Sample_characteristics_ch1": [
+            "status: control",
+            "status: example",
+            "status: untreated",
+            "status: treated",
+        ],
+    }
+
+    characteristics = extract_characteristics(metadata)
+
+    assert characteristics.columns.tolist() == ["status", "status_2"]
+    assert characteristics["status"].tolist() == ["control", "example"]
+    assert characteristics["status_2"].tolist() == ["untreated", "treated"]
 
 
 def test_load_geo_expression_table(tmp_path: Path) -> None:

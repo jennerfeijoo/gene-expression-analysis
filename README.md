@@ -9,5 +9,9 @@ checks the local series matrix structure, previews available sample metadata,
 and loads the expression table without performing downstream biological
 analysis.
 
-Raw GEO files are stored under `data/raw/` for local use and are not tracked by
-Git.
+The second notebook,
+[`notebooks/02_sample_metadata.ipynb`](notebooks/02_sample_metadata.ipynb),
+organizes sample metadata and documents source-based group labels.
+
+Raw GEO files and the generated `data/processed/sample_metadata.csv` table are
+kept locally and are not tracked by Git.
